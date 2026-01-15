@@ -39,9 +39,9 @@ export async function processText(
         throw new Error("Failed to generate embeddings for chunk");
       }
 
-      await pineconeIndex.upsert([
+      await pineconeIndex.namespace(options.sessionId).upsert([
         {
-          id: `${options.sessionId}-chunk-${i}`,
+          id: `chunk-${i}`,
           values: embeddingRes.embeddings[0].values,
           metadata: {
             sessionId: options.sessionId,

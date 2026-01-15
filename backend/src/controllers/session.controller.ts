@@ -2,7 +2,14 @@ import { Request, Response } from "express";
 import { pineconeIndex } from "../config/pinecone";
 import { redisClient } from "../config/redis";
 
-export const deleteSession = async (req: Request, res: Response) => {
+type ChatParams = {
+  sessionId: string;
+};
+
+export const deleteSession = async (
+  req: Request<ChatParams>,
+  res: Response
+) => {
   try {
     const { sessionId } = req.params;
 
@@ -10,9 +17,7 @@ export const deleteSession = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Session ID is required" });
     }
 
-    await pineconeIndex.deleteMany({
-      filter: { sessionId },
-    });
+    await pineconeIndex.namespace(sessionId).deleteMany({});
 
     await redisClient.del(`chat:history:${sessionId}`);
 
