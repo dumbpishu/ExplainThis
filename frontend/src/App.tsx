@@ -1,9 +1,13 @@
-function App() {
-  return (
-    <>
-      <div className="bg-pink-700">Hello, World!</div>
-    </>
-  );
-}
+import { useState } from "react";
+import { UploadView } from "./components/UploadView";
+import { ChatView } from "./components/ChatView";
 
-export default App;
+export default function App() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  if (!sessionId) {
+    return <UploadView onSessionCreated={setSessionId} />;
+  }
+
+  return <ChatView sessionId={sessionId} />;
+}
