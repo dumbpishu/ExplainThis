@@ -1,35 +1,29 @@
-const BASE_URL = "http://localhost:8000/api";
+import { apiConfig, handleResponse } from "./config";
 
-export async function uploadText(text: string) {
-  const response = await fetch(`${BASE_URL}/ingest-text`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to upload text");
-  }
-
-  const data = await response.json();
-  return data;
+export interface UploadResponse {
+  sessionId: string;
+  summary: string;
+  chunkCount: number;
 }
 
-export async function uploadPDF(file: File) {
+export const uploadPDF = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch("http://localhost:8000/api/ingest-pdf", {
+  const response = await fetch(`${apiConfig.baseURL}/ingest-pdf`, {
     method: "POST",
     body: formData,
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to upload PDF");
-  }
+  return handleResponse<UploadResponse>(response);
+};
 
-  const data = await response.json();
-  return data;
-}
+export const uploadText = async (text: string): Promise<UploadResponse> => {
+  const response = await fetch(`${apiConfig.baseURL}/ingest-text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+
+  return handleResponse<UploadResponse>(response);
+};

@@ -1,57 +1,133 @@
+import { useState, useRef } from "react";
 import { uploadPDF, uploadText } from "../api/ingest";
-import { useState } from "react";
+import LoadingSpinner from "./LoadingSpinner";
+import toast from "react-hot-toast";
 
-export function UploadView({
-  onSessionCreated,
-}: {
-  onSessionCreated: (sessionId: string) => void;
-}) {
+interface UploadViewProps {
+  onSessionCreated: (
+    sessionId: string,
+    summary: string,
+    chunkCount: number
+  ) => void;
+}
+
+export default function UploadView({ onSessionCreated }: UploadViewProps) {
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePDF = async (file: File) => {
-    setLoading(true);
-    const res = await uploadPDF(file);
-    onSessionCreated(res.sessionId);
+  const handlePDFUpload = async (file: File) => {
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const res = await uploadPDF(file);
+      toast.success("PDF uploaded successfully");
+      onSessionCreated(res.sessionId, res.summary, res.chunkCount);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload PDF");
+    } finally {
+      setIsLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
-  const handleText = async () => {
-    if (!text.trim()) return;
-    setLoading(true);
-    const res = await uploadText(text);
-    onSessionCreated(res.sessionId);
+  const handleTextUpload = async () => {
+    if (!text.trim()) {
+      toast.error("Please enter some text");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await uploadText(text);
+      toast.success("Text processed successfully");
+      onSessionCreated(res.sessionId, res.summary, res.chunkCount);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to process text");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === "application/pdf") {
+      handlePDFUpload(file);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-xl shadow w-full max-w-md space-y-4">
-        <h1 className="text-2xl font-semibold text-center">ExplainThis</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Document Chat
+          </h1>
+          <p className="text-gray-600">
+            Upload a PDF or paste text to start chatting
+          </p>
+        </div>
 
-        <label className="block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer">
-          <input
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            onChange={(e) => e.target.files && handlePDF(e.target.files[0])}
-          />
-          <span className="text-gray-600">Upload PDF</span>
-        </label>
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          {/* PDF Upload */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload PDF
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={isLoading}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer m-2"
+              >
+                {isLoading ? <LoadingSpinner /> : "Select PDF File"}
+              </button>
+              {/* <p className="text-sm text-gray-500 mt-2">Only .pdf files</p> */}
+            </div>
+          </div>
 
-        <textarea
-          className="w-full border rounded-lg p-3"
-          rows={4}
-          placeholder="Or paste text here"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or</span>
+            </div>
+          </div>
 
-        <button
-          onClick={handleText}
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg"
-        >
-          {loading ? "Processing..." : "Submit Text"}
-        </button>
+          {/* Text Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Paste Text
+            </label>
+            <textarea
+              className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your text here..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleTextUpload}
+              disabled={isLoading || !text.trim()}
+              className="w-full mt-4 py-3 px-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
+            >
+              {isLoading ? <LoadingSpinner /> : "Process Text"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
