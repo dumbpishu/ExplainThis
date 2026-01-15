@@ -3,9 +3,21 @@ import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { getChatHistory, addMessageToChatHistory } from "../utils/chatMemory";
 
-export const chatWithAI = async (req: Request, res: Response) => {
+type ChatParams = {
+  sessionId: string;
+};
+
+type ChatBody = {
+  question: string;
+};
+
+export const chatWithAI = async (
+  req: Request<ChatParams, {}, ChatBody>,
+  res: Response
+) => {
   try {
-    const { sessionId, question } = req.body;
+    const { sessionId } = req.params;
+    const { question } = req.body;
 
     if (!sessionId || !question) {
       return res.status(400).json({ error: "Missing sessionId or question" });
@@ -42,7 +54,7 @@ export const chatWithAI = async (req: Request, res: Response) => {
     // embed the question
     const queryEmbedding = await ai.models.embedContent({
       model: "text-embedding-004",
-      contents: question,
+      contents: finalQuestion,
     });
 
     if (!queryEmbedding.embeddings || queryEmbedding.embeddings.length === 0) {
@@ -66,6 +78,7 @@ export const chatWithAI = async (req: Request, res: Response) => {
 
     const contexts = results.matches
       .map((match) => match.metadata?.text)
+      .filter(Boolean)
       .join("\n");
 
     // generate AI response
@@ -84,14 +97,14 @@ export const chatWithAI = async (req: Request, res: Response) => {
       ${contexts}
 
       Question:
-      ${question}
+      ${finalQuestion}
 
       Answer:
     `;
 
     await addMessageToChatHistory(sessionId, {
       role: "user",
-      content: question,
+      content: finalQuestion,
     });
 
     const aiResponse = await ai.models.generateContent({

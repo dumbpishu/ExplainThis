@@ -1,14 +1,17 @@
 import { Request, Response } from "express";
 import { processText } from "../utils/textProcessor";
 import { PDFParse } from "pdf-parse";
+import { generateSessionId } from "../utils/session";
 
 export const ingestText = async (req: Request, res: Response) => {
   try {
-    const { text, sessionId } = req.body;
+    const { text } = req.body;
 
-    if (!text || !sessionId) {
-      return res.status(400).json({ error: "Missing text or sessionId" });
+    if (!text) {
+      return res.status(400).json({ error: "Missing text" });
     }
+
+    const sessionId = generateSessionId();
 
     const result = await processText(text, {
       summarize: true,
@@ -20,6 +23,7 @@ export const ingestText = async (req: Request, res: Response) => {
       message: "Text ingested successfully",
       summary: result.summary,
       chunkCount: result.chunkCount,
+      sessionId,
     });
   } catch (error) {
     console.error("Ingestion error:", error);
@@ -29,12 +33,13 @@ export const ingestText = async (req: Request, res: Response) => {
 
 export const ingestPDF = async (req: Request, res: Response) => {
   try {
-    const { sessionId } = req.body;
     const file = req.file;
 
-    if (!file || !sessionId) {
-      return res.status(400).json({ error: "Missing PDF file or sessionId" });
+    if (!file) {
+      return res.status(400).json({ error: "Missing PDF file" });
     }
+
+    const sessionId = generateSessionId();
 
     // convert buffer to Uint8Array
     const pdfData = new PDFParse(new Uint8Array(file.buffer));
@@ -50,6 +55,7 @@ export const ingestPDF = async (req: Request, res: Response) => {
       message: "PDF ingested successfully",
       summary: result.summary,
       chunkCount: result.chunkCount,
+      sessionId,
     });
   } catch (error) {
     console.error("PDF Ingestion error:", error);
