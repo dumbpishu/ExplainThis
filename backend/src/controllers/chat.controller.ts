@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
+import { getChatHistory, addMessageToChatHistory } from "../utils/chatMemory";
 
 export const chatWithAI = async (req: Request, res: Response) => {
   try {
@@ -8,6 +9,34 @@ export const chatWithAI = async (req: Request, res: Response) => {
 
     if (!sessionId || !question) {
       return res.status(400).json({ error: "Missing sessionId or question" });
+    }
+
+    // rewrite question with chat history
+    const chatHistory = await getChatHistory(sessionId);
+    let finalQuestion = question;
+
+    if (chatHistory.length > 0) {
+      const rewritePrompt = `
+      You are rewriting a follow-up question so it is fully self-contained.
+
+      Conversation so far:
+      ${chatHistory.map((h) => `${h.role}: ${h.content}`).join("\n")}
+
+      Follow-up question:
+      ${question}
+
+      Rewrite the question so it can be understood on its own.
+      Return ONLY the rewritten question.
+    `;
+
+      const rewritten = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: rewritePrompt,
+      });
+
+      if (rewritten.text) {
+        finalQuestion = rewritten.text.trim();
+      }
     }
 
     // embed the question
@@ -41,28 +70,38 @@ export const chatWithAI = async (req: Request, res: Response) => {
 
     // generate AI response
     const contents = `
-                        You are a professional AI assistant.
+      You are a professional AI assistant.
 
-                        Use ONLY the provided context to answer the user's question.
-                        Follow these rules strictly:
-                        - Keep the answer concise and professional
-                        - Use short paragraphs (2–3 lines max)
-                        - Avoid headings, markdown lists, emojis, or decorative formatting
-                        - Do not add unnecessary background or storytelling
-                        - If the context is insufficient, clearly say so in one sentence
+      Use ONLY the provided context to answer the user's question.
+      Follow these rules strictly:
+      - Keep the answer concise and professional
+      - Use short paragraphs (2–3 lines max)
+      - Avoid headings, markdown lists, emojis, or decorative formatting
+      - Do not add unnecessary background or storytelling
+      - If the context is insufficient, clearly say so in one sentence
 
-                        Context:
-                        ${contexts}
+      Context:
+      ${contexts}
 
-                        Question:
-                        ${question}
+      Question:
+      ${question}
 
-                        Answer:
-                      `;
+      Answer:
+    `;
+
+    await addMessageToChatHistory(sessionId, {
+      role: "user",
+      content: question,
+    });
 
     const aiResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents,
+    });
+
+    await addMessageToChatHistory(sessionId, {
+      role: "assistant",
+      content: aiResponse.text || "I'm sorry, I couldn't generate a response.",
     });
 
     res.json({ answer: aiResponse.text });
