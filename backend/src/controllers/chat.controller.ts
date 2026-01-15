@@ -32,6 +32,7 @@ export const chatWithAI = async (req: Request, res: Response) => {
       vector: Array.from(embeddingValues),
       topK: 5,
       filter: { sessionId },
+      includeMetadata: true,
     });
 
     const contexts = results.matches
@@ -39,7 +40,25 @@ export const chatWithAI = async (req: Request, res: Response) => {
       .join("\n");
 
     // generate AI response
-    const contents = `You are an AI assistant. Use the following context to answer the question.\n\nContext:\n${contexts}\n\nQuestion: ${question}\n\nAnswer:`;
+    const contents = `
+                        You are a professional AI assistant.
+
+                        Use ONLY the provided context to answer the user's question.
+                        Follow these rules strictly:
+                        - Keep the answer concise and professional
+                        - Use short paragraphs (2–3 lines max)
+                        - Avoid headings, markdown lists, emojis, or decorative formatting
+                        - Do not add unnecessary background or storytelling
+                        - If the context is insufficient, clearly say so in one sentence
+
+                        Context:
+                        ${contexts}
+
+                        Question:
+                        ${question}
+
+                        Answer:
+                      `;
 
     const aiResponse = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
