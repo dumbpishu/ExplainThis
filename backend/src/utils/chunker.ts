@@ -1,15 +1,23 @@
 export function chunkText(
   text: string,
-  chunkSize: number = 600,
-  overlap: number = 120
+  chunkSize: number = 1000,
+  overlap: number = 100
 ): string[] {
-  const chunks: string[] = [];
+  if (overlap >= chunkSize) {
+    throw new Error("overlap must be smaller than chunkSize");
+  }
 
+  const chunks: string[] = [];
   let start = 0;
 
   while (start < text.length) {
     const end = Math.min(start + chunkSize, text.length);
-    chunks.push(text.slice(start, end));
+    const chunk = text.slice(start, end).trim();
+
+    if (chunk.length > 0) {
+      chunks.push(chunk);
+    }
+
     start += chunkSize - overlap;
   }
 
