@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { getChatHistory, addMessageToChatHistory } from "../utils/chatMemory";
+import { openRouter } from "../config/openrouter";
 
 type ChatParams = {
   sessionId: string;
@@ -41,17 +42,33 @@ export const chatWithAI = async (
       Return ONLY the rewritten question.
     `;
 
-      const rewritten = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: rewritePrompt,
+      // const rewritten = await ai.models.generateContent({
+      //   model: "gemini-3-flash-preview",
+      //   contents: rewritePrompt,
+      // });
+
+      // if (rewritten.text) {
+      //   finalQuestion = rewritten.text.trim();
+      // }
+
+      // using openrouter for question rewriting
+      const rewriteRes = await openRouter.post("/chat/completions", {
+        model: "mistralai/mistral-7b-instruct:free",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Rewrite follow-up questions so they are fully self-contained.",
+          },
+          {
+            role: "user",
+            content: rewritePrompt,
+          },
+        ],
       });
 
-      if (rewritten.text) {
-        finalQuestion = rewritten.text.trim();
-      }
+      finalQuestion = rewriteRes.data.choices[0].message.content.trim();
     }
-
-    console.log("Final question:", finalQuestion);
 
     // embed the question
     const queryEmbedding = await ai.models.embedContent({
@@ -71,10 +88,9 @@ export const chatWithAI = async (
         .json({ error: "Failed to extract embedding values" });
     }
 
-    const results = await pineconeIndex.query({
+    const results = await pineconeIndex.namespace(sessionId).query({
       vector: Array.from(embeddingValues),
       topK: 5,
-      filter: { sessionId },
       includeMetadata: true,
     });
 
@@ -109,17 +125,34 @@ export const chatWithAI = async (
       content: finalQuestion,
     });
 
-    const aiResponse = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents,
+    // const aiResponse = await ai.models.generateContent({
+    //   model: "gemini-3-flash-preview",
+    //   contents,
+    // });
+
+    // using openrouter for AI response generation
+    const answerRes = await openRouter.post("/chat/completions", {
+      model: "mistralai/mistral-7b-instruct:free",
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional AI assistant.",
+        },
+        {
+          role: "user",
+          content: contents,
+        },
+      ],
     });
+
+    const answer = answerRes.data.choices[0].message.content.trim();
 
     await addMessageToChatHistory(sessionId, {
       role: "assistant",
-      content: aiResponse.text || "I'm sorry, I couldn't generate a response.",
+      content: answer || "I'm sorry, I couldn't generate a response.",
     });
 
-    res.json({ answer: aiResponse.text });
+    res.json({ answer: answer });
   } catch (error) {
     console.error("Error in chatWithAI:", error);
     res.status(500).json({ error: "Internal Server Error" });
