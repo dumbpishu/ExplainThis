@@ -3,6 +3,6 @@ import { createSession } from "../controllers/session.controller";
 
 const router = Router();
 
-router.post("/sessions", createSession);
+router.post("/session", createSession);
 
 export default router;
