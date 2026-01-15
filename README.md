@@ -61,18 +61,21 @@ The project is built using modern backend and AI technologies and follows produc
 
 Create a `.env` file in the backend project:
 
+```
 PORT=8000
 REDIS_URL=redis://127.0.0.1:6379
 PINECONE_API_KEY=your_pinecone_api_key
 PINECONE_INDEX_NAME=your_pinecone_index_name
 GEMINI_API_KEY=your_gemini_api_key
+```
 
 ## 🧠 Redis Setup (Local Installation)
 
 - This project uses locally installed Redis (not Docker).
 
-# Install Redis
+#### Install Redis
 
+```
 - Ubuntu / Debian
   sudo apt update
   sudo apt install redis-server
@@ -88,22 +91,29 @@ GEMINI_API_KEY=your_gemini_api_key
 
 - Expected output:
   PONG
+```
 
 ## ▶️ Running the Application
 
 ### Backend
 
+```
 npm install
 npm run dev
+```
 
 - You should see:
 
+```
 Redis connected
 Server is running on port 8000
+```
 
 ### Frontend
 
+```
 npm install
 npm start
+```
 
 - The frontend communicates with the backend using REST APIs.
