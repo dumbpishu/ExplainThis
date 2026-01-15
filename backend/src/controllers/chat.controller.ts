@@ -51,6 +51,8 @@ export const chatWithAI = async (
       }
     }
 
+    console.log("Final question:", finalQuestion);
+
     // embed the question
     const queryEmbedding = await ai.models.embedContent({
       model: "text-embedding-004",

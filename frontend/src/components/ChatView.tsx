@@ -4,6 +4,7 @@ import { deleteSession } from "../api/session";
 import MessageBubble from "./MessageBubble";
 import LoadingSpinner from "./LoadingSpinner";
 import toast from "react-hot-toast";
+import { cleanText } from "../utils/textUtils";
 
 interface Message {
   id: string;
@@ -15,14 +16,12 @@ interface Message {
 interface ChatViewProps {
   sessionId: string;
   summary: string;
-  chunkCount: number;
   onNewSession: () => void;
 }
 
 export default function ChatView({
   sessionId,
   summary,
-  chunkCount,
   onNewSession,
 }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([
@@ -37,6 +36,8 @@ export default function ChatView({
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const formattedSummary = cleanText(summary);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,7 +77,7 @@ export default function ChatView({
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: res.answer,
+        content: cleanText(res.answer),
         timestamp: new Date(),
       };
 
@@ -111,61 +112,65 @@ export default function ChatView({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex justify-between items-center max-w-6xl mx-auto">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Document Chat</h1>
-            <p className="text-sm text-gray-600">
-              Session: {sessionId.substring(0, 8)}... • {chunkCount} chunks
-            </p>
+            <h1 className="text-xl font-bold text-blue-900">ExplainThis</h1>
+            <div className="mt-1 text-sm text-gray-600">
+              Session: {sessionId.substring(0, 8)}...
+            </div>
           </div>
           <button
             onClick={handleNewSession}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gra-900 hover:bg-blue-100 rounded-lg transition-colors bg-blue-50 cursor-pointer"
           >
             New Session
           </button>
         </div>
-      </header>
+      </div>
 
       {/* Summary */}
-      {summary && (
-        <div className="max-w-4xl mx-auto px-4 mt-4">
+      {formattedSummary && (
+        <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">{summary}</p>
+            <p className="text-gray-700 whitespace-pre-wrap">
+              {formattedSummary}
+            </p>
           </div>
         </div>
       )}
 
       {/* Chat Area */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-xl shadow">
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="bg-white rounded-lg shadow border border-gray-200">
           {/* Messages */}
-          <div className="h-125 overflow-y-auto p-4">
-            {messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                role={message.role}
-                content={message.content}
-                timestamp={formatTime(message.timestamp)}
-              />
-            ))}
+          <div className="h-125 overflow-y-auto p-6">
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <MessageBubble
+                  key={message.id}
+                  role={message.role}
+                  content={message.content}
+                  timestamp={formatTime(message.timestamp)}
+                />
+              ))}
 
-            {isLoading && (
-              <div className="flex items-center space-x-2 text-gray-600">
-                <LoadingSpinner />
-                <span>Thinking...</span>
-              </div>
-            )}
+              {isLoading && (
+                <div className="flex items-center space-x-2">
+                  <LoadingSpinner />
+                  <span className="text-gray-600">Thinking...</span>
+                </div>
+              )}
 
-            <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
           {/* Input */}
-          <div className="border-t p-4">
-            <div className="flex space-x-2">
+          <div className="border-t border-gray-200 p-4">
+            <div className="flex space-x-3">
               <textarea
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                 placeholder="Type your question..."
                 rows={1}
                 value={input}
@@ -176,7 +181,7 @@ export default function ChatView({
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || isLoading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 Send
               </button>

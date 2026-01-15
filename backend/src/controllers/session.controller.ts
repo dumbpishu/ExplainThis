@@ -17,7 +17,7 @@ export const deleteSession = async (
       return res.status(400).json({ message: "Session ID is required" });
     }
 
-    await pineconeIndex.namespace(sessionId).deleteMany({});
+    await pineconeIndex.deleteNamespace(sessionId);
 
     await redisClient.del(`chat:history:${sessionId}`);
 

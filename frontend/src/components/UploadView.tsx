@@ -4,11 +4,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import toast from "react-hot-toast";
 
 interface UploadViewProps {
-  onSessionCreated: (
-    sessionId: string,
-    summary: string,
-    chunkCount: number
-  ) => void;
+  onSessionCreated: (sessionId: string, summary: string) => void;
 }
 
 export default function UploadView({ onSessionCreated }: UploadViewProps) {
@@ -20,13 +16,29 @@ export default function UploadView({ onSessionCreated }: UploadViewProps) {
     if (!file) return;
 
     setIsLoading(true);
+    // Show parsing toast that will stay visible
+    const parsingToast = toast.loading("Parsing PDF...", {
+      duration: Infinity,
+    });
+
     try {
       const res = await uploadPDF(file);
-      toast.success("PDF uploaded successfully");
-      onSessionCreated(res.sessionId, res.summary, res.chunkCount);
+
+      // Update toast to indicate processing is complete but wait before switching
+      toast.success("PDF processed successfully! Loading chat...", {
+        id: parsingToast,
+        duration: 2000,
+      });
+
+      // Wait a moment to ensure toast is visible before switching
+      setTimeout(() => {
+        onSessionCreated(res.sessionId, res.summary);
+      }, 1500);
     } catch (error: any) {
-      toast.error(error.message || "Failed to upload PDF");
-    } finally {
+      toast.error(error.message || "Failed to upload PDF", {
+        id: parsingToast,
+        duration: 3000,
+      });
       setIsLoading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -41,13 +53,29 @@ export default function UploadView({ onSessionCreated }: UploadViewProps) {
     }
 
     setIsLoading(true);
+    // Show parsing toast that will stay visible
+    const parsingToast = toast.loading("Parsing text...", {
+      duration: Infinity,
+    });
+
     try {
       const res = await uploadText(text);
-      toast.success("Text processed successfully");
-      onSessionCreated(res.sessionId, res.summary, res.chunkCount);
+
+      // Update toast to indicate processing is complete but wait before switching
+      toast.success("Text processed successfully! Loading chat...", {
+        id: parsingToast,
+        duration: 2000,
+      });
+
+      // Wait a moment to ensure toast is visible before switching
+      setTimeout(() => {
+        onSessionCreated(res.sessionId, res.summary);
+      }, 1500);
     } catch (error: any) {
-      toast.error(error.message || "Failed to process text");
-    } finally {
+      toast.error(error.message || "Failed to process text", {
+        id: parsingToast,
+        duration: 3000,
+      });
       setIsLoading(false);
     }
   };
@@ -84,7 +112,6 @@ export default function UploadView({ onSessionCreated }: UploadViewProps) {
                 accept=".pdf"
                 className="hidden"
                 onChange={handleFileChange}
-                disabled={isLoading}
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
@@ -93,7 +120,6 @@ export default function UploadView({ onSessionCreated }: UploadViewProps) {
               >
                 {isLoading ? <LoadingSpinner /> : "Select PDF File"}
               </button>
-              {/* <p className="text-sm text-gray-500 mt-2">Only .pdf files</p> */}
             </div>
           </div>
 
@@ -113,7 +139,7 @@ export default function UploadView({ onSessionCreated }: UploadViewProps) {
               Paste Text
             </label>
             <textarea
-              className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               placeholder="Enter your text here..."
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -122,7 +148,7 @@ export default function UploadView({ onSessionCreated }: UploadViewProps) {
             <button
               onClick={handleTextUpload}
               disabled={isLoading || !text.trim()}
-              className="w-full mt-4 py-3 px-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
+              className="w-full mt-4 py-3 px-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? <LoadingSpinner /> : "Process Text"}
             </button>

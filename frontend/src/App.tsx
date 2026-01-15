@@ -6,22 +6,15 @@ import ChatView from "./components/ChatView";
 export default function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [summary, setSummary] = useState("");
-  const [chunkCount, setChunkCount] = useState(0);
 
-  const handleSessionCreated = (
-    sessionId: string,
-    summary: string,
-    chunkCount: number
-  ) => {
+  const handleSessionCreated = (sessionId: string, summary: string) => {
     setSessionId(sessionId);
     setSummary(summary);
-    setChunkCount(chunkCount);
   };
 
   const handleNewSession = () => {
     setSessionId(null);
     setSummary("");
-    setChunkCount(0);
   };
 
   return (
@@ -41,7 +34,6 @@ export default function App() {
         <ChatView
           sessionId={sessionId}
           summary={summary}
-          chunkCount={chunkCount}
           onNewSession={handleNewSession}
         />
       ) : (
