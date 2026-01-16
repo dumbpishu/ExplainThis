@@ -23,8 +23,6 @@ interface ChatViewProps {
 const extractCleanSummary = (rawSummary: string): string => {
   if (!rawSummary) return "";
 
-  console.log("Raw summary received:", rawSummary);
-
   // Check if it's already a clean summary (no ### Response: markers)
   if (!rawSummary.includes("### Response:")) {
     return cleanText(rawSummary);

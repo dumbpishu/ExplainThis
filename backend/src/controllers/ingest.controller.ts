@@ -34,6 +34,7 @@ export const ingestText = async (req: Request, res: Response) => {
 export const ingestPDF = async (req: Request, res: Response) => {
   try {
     const file = req.file;
+    console.log("Received file:", file?.originalname);
 
     if (!file) {
       return res.status(400).json({ error: "Missing PDF file" });
@@ -50,6 +51,8 @@ export const ingestPDF = async (req: Request, res: Response) => {
       embed: true,
       sessionId,
     });
+
+    console.log("PDF ingestion result:", result);
 
     return res.status(200).json({
       message: "PDF ingested successfully",

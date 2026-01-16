@@ -1,9 +1,8 @@
 import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { chunkText } from "./chunker";
-import { openRouter } from "../config/openrouter";
 
-const SUMMARY_MODEL = "mistralai/mistral-7b-instruct:free";
+const SUMMARY_MODEL = "gemini-2.5-flash";
 
 type ProcessOptions = {
   embed?: boolean;
@@ -22,28 +21,13 @@ export async function processText(
     const currentChunk = chunks[i];
 
     // summarization logic for each chunk
-    // if (options.summarize) {
-    //   const summaryRes = await ai.models.generateContent({
-    //     model: "gemini-3-flash-preview",
-    //     contents: `Summarize the following text:\n\n${currentChunk}`,
-    //   });
-
-    //   summaries.push(summaryRes.text || "");
-    // }
-
-    // using openrouter for summarization
     if (options.summarize) {
-      const summaryRes = await openRouter.post("/chat/completions", {
+      const summaryRes = await ai.models.generateContent({
         model: SUMMARY_MODEL,
-        messages: [
-          {
-            role: "user",
-            content: `Summarize the following text clearly and concisely:\n\n${currentChunk}`,
-          },
-        ],
+        contents: `Summarize the following text:\n\n${currentChunk}`,
       });
 
-      summaries.push(summaryRes.data.choices[0].message.content.trim());
+      summaries.push(summaryRes.text || "");
     }
 
     // embedding logic
@@ -73,31 +57,14 @@ export async function processText(
 
   let finalSummary: string | undefined;
 
-  // if (options.summarize && summaries.length > 0) {
-  //   const combinedSummaries = summaries.join("\n");
-  //   const finalSummaryRes = await ai.models.generateContent({
-  //     model: "gemini-3-flash-preview",
-  //     contents: `Summarize the following text:\n\n${combinedSummaries}`,
-  //   });
-
-  //   finalSummary = finalSummaryRes.text || "";
-  // }
-
-  // using openrouter for final summarization
   if (options.summarize && summaries.length > 0) {
-    const finalSummaryRes = await openRouter.post("/chat/completions", {
+    const combinedSummaries = summaries.join("\n");
+    const finalSummaryRes = await ai.models.generateContent({
       model: SUMMARY_MODEL,
-      messages: [
-        {
-          role: "user",
-          content: `Create a concise final summary from the following summaries:\n\n${summaries.join(
-            "\n"
-          )}`,
-        },
-      ],
+      contents: `Summarize the following text:\n\n${combinedSummaries}`,
     });
 
-    finalSummary = finalSummaryRes.data.choices[0].message.content.trim();
+    finalSummary = finalSummaryRes.text || "";
   }
 
   return { summary: finalSummary, chunkCount: chunks.length };

@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { getChatHistory, addMessageToChatHistory } from "../utils/chatMemory";
-import { openRouter } from "../config/openrouter";
+
+const SUMMARY_MODEL = "gemini-2.5-flash-lite";
 
 type ChatParams = {
   sessionId: string;
@@ -42,32 +43,14 @@ export const chatWithAI = async (
       Return ONLY the rewritten question.
     `;
 
-      // const rewritten = await ai.models.generateContent({
-      //   model: "gemini-3-flash-preview",
-      //   contents: rewritePrompt,
-      // });
-
-      // if (rewritten.text) {
-      //   finalQuestion = rewritten.text.trim();
-      // }
-
-      // using openrouter for question rewriting
-      const rewriteRes = await openRouter.post("/chat/completions", {
-        model: "mistralai/mistral-7b-instruct:free",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Rewrite follow-up questions so they are fully self-contained.",
-          },
-          {
-            role: "user",
-            content: rewritePrompt,
-          },
-        ],
+      const rewritten = await ai.models.generateContent({
+        model: SUMMARY_MODEL,
+        contents: rewritePrompt,
       });
 
-      finalQuestion = rewriteRes.data.choices[0].message.content.trim();
+      if (rewritten.text) {
+        finalQuestion = rewritten.text.trim();
+      }
     }
 
     // embed the question
@@ -125,34 +108,17 @@ export const chatWithAI = async (
       content: finalQuestion,
     });
 
-    // const aiResponse = await ai.models.generateContent({
-    //   model: "gemini-3-flash-preview",
-    //   contents,
-    // });
-
-    // using openrouter for AI response generation
-    const answerRes = await openRouter.post("/chat/completions", {
-      model: "mistralai/mistral-7b-instruct:free",
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional AI assistant.",
-        },
-        {
-          role: "user",
-          content: contents,
-        },
-      ],
+    const aiResponse = await ai.models.generateContent({
+      model: SUMMARY_MODEL,
+      contents,
     });
-
-    const answer = answerRes.data.choices[0].message.content.trim();
 
     await addMessageToChatHistory(sessionId, {
       role: "assistant",
-      content: answer || "I'm sorry, I couldn't generate a response.",
+      content: aiResponse.text || "I'm sorry, I couldn't generate a response.",
     });
 
-    res.json({ answer: answer });
+    res.json({ answer: aiResponse.text });
   } catch (error) {
     console.error("Error in chatWithAI:", error);
     res.status(500).json({ error: "Internal Server Error" });
