@@ -1,8 +1,9 @@
 import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { chunkText } from "./chunker";
+import { generateWithFallback } from "./generateWithFallback";
 
-const SUMMARY_MODEL = "gemini-2.5-flash";
+const GENERATION_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 
 type ProcessOptions = {
   embed?: boolean;
@@ -22,8 +23,7 @@ export async function processText(
 
     // summarization logic for each chunk
     if (options.summarize) {
-      const summaryRes = await ai.models.generateContent({
-        model: SUMMARY_MODEL,
+      const summaryRes = await generateWithFallback(GENERATION_MODELS, {
         contents: `Summarize the following text:\n\n${currentChunk}`,
       });
 
@@ -59,8 +59,7 @@ export async function processText(
 
   if (options.summarize && summaries.length > 0) {
     const combinedSummaries = summaries.join("\n");
-    const finalSummaryRes = await ai.models.generateContent({
-      model: SUMMARY_MODEL,
+    const finalSummaryRes = await generateWithFallback(GENERATION_MODELS, {
       contents: `Summarize the following text:\n\n${combinedSummaries}`,
     });
 

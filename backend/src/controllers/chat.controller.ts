@@ -2,8 +2,9 @@ import { Request, Response } from "express";
 import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { getChatHistory, addMessageToChatHistory } from "../utils/chatMemory";
+import { generateWithFallback } from "../utils/generateWithFallback";
 
-const SUMMARY_MODEL = "gemini-2.5-flash-lite";
+const GENERATION_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 
 type ChatParams = {
   sessionId: string;
@@ -43,8 +44,7 @@ export const chatWithAI = async (
       Return ONLY the rewritten question.
     `;
 
-      const rewritten = await ai.models.generateContent({
-        model: SUMMARY_MODEL,
+      const rewritten = await generateWithFallback(GENERATION_MODELS, {
         contents: rewritePrompt,
       });
 
@@ -108,8 +108,7 @@ export const chatWithAI = async (
       content: finalQuestion,
     });
 
-    const aiResponse = await ai.models.generateContent({
-      model: SUMMARY_MODEL,
+    const aiResponse = await generateWithFallback(GENERATION_MODELS, {
       contents,
     });
 
