@@ -4,7 +4,8 @@ import { deleteSession } from "../api/session";
 import MessageBubble from "./MessageBubble";
 import LoadingSpinner from "./LoadingSpinner";
 import toast from "react-hot-toast";
-import { cleanText } from "../utils/textUtils";
+import { extractCleanSummary, formatSummary } from "../utils/formatText";
+import { formatTime } from "../utils/dateTime";
 
 interface Message {
   id: string;
@@ -18,87 +19,6 @@ interface ChatViewProps {
   summary: string;
   onNewSession: () => void;
 }
-
-// Function to extract and clean the summary from the API response
-const extractCleanSummary = (rawSummary: string): string => {
-  if (!rawSummary) return "";
-
-  // Check if it's already a clean summary (no ### Response: markers)
-  if (!rawSummary.includes("### Response:")) {
-    return cleanText(rawSummary);
-  }
-
-  // Try to find the final summary by looking for "### Response:" patterns
-  const responseSections = rawSummary.split("### Response:");
-
-  if (responseSections.length > 0) {
-    // Get the last response section (which should be the final summary)
-    const lastResponse = responseSections[responseSections.length - 1];
-
-    // Remove any remaining markers, tags, and extra whitespace
-    const cleaned = lastResponse
-      .replace(/\[\/s\]/g, "")
-      .replace(/<s>/g, "")
-      .replace(/<\/INST>/g, "")
-      .replace(/---/g, "")
-      .replace(
-        /Create a concise final summary from the following summaries:/g,
-        ""
-      )
-      .replace(/### Response:/g, "")
-      .replace(/\n{3,}/g, "\n\n") // Replace 3+ newlines with double newlines
-      .replace(/\s+/g, " ") // Replace multiple spaces with single space
-      .trim();
-
-    console.log("Extracted summary:", cleaned);
-    return cleaned;
-  }
-
-  // If no response sections found, clean the whole text
-  return cleanText(rawSummary);
-};
-
-// Function to format summary for better readability
-const formatSummary = (text: string): string => {
-  if (!text) return "";
-
-  // Split into paragraphs
-  const paragraphs = text.split("\n").filter((p) => p.trim().length > 0);
-
-  if (paragraphs.length === 0) return "";
-
-  // Format each paragraph
-  const formatted = paragraphs
-    .map((paragraph) => {
-      // Clean the paragraph
-      let cleaned = paragraph.trim();
-
-      // Remove any remaining markers
-      cleaned = cleaned
-        .replace(/\[\/s\]/g, "")
-        .replace(/<s>/g, "")
-        .replace(/<\/INST>/g, "")
-        .replace(/---/g, "");
-
-      // Capitalize first letter of paragraph
-      if (cleaned.length > 0) {
-        const firstChar = cleaned.charAt(0).toUpperCase();
-        const rest = cleaned.slice(1);
-        cleaned = firstChar + rest;
-      }
-
-      // Ensure paragraph ends with a period if it doesn't have proper punctuation
-      if (cleaned.length > 0 && !/[.!?]$/.test(cleaned.trim())) {
-        cleaned = cleaned.trim() + ".";
-      }
-
-      return cleaned.trim();
-    })
-    .filter((p) => p.length > 0) // Remove empty paragraphs
-    .join("\n\n");
-
-  return formatted;
-};
 
 export default function ChatView({
   sessionId,
@@ -116,37 +36,60 @@ export default function ChatView({
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSummaryVisible, setIsSummaryVisible] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Extract and format the summary
   const formattedSummary = formatSummary(extractCleanSummary(summary));
 
-  // Log for debugging
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    console.log("Original summary:", summary);
-    console.log("Formatted summary:", formattedSummary);
-  }, [summary, formattedSummary]);
+    scrollToBottom();
+  }, [messages, isLoading]);
 
+  // Auto-resize textarea
   useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(
+        textareaRef.current.scrollHeight,
+        120
+      )}px`;
+    }
+  }, [input]);
+
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  };
 
   const handleNewSession = async () => {
+    setShowConfirmModal(true);
+  };
+
+  const confirmNewSession = async () => {
     try {
       await deleteSession(sessionId);
-      toast.success("Session cleared");
+      toast.success("Session cleared successfully");
+      onNewSession();
     } catch (error: any) {
       console.error("Failed to delete session:", error);
-      toast.error("Failed to clear session");
+      toast.error("Failed to clear session. Please try again.");
     } finally {
-      onNewSession();
+      setShowConfirmModal(false);
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+  const cancelNewSession = () => {
+    setShowConfirmModal(false);
+  };
 
-    const question = input.trim();
+  const sendMessage = async () => {
+    const trimmedInput = input.trim();
+    if (!trimmedInput || isLoading) return;
+
+    const question = trimmedInput;
     setInput("");
     setIsLoading(true);
 
@@ -165,18 +108,20 @@ export default function ChatView({
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: cleanText(res.answer),
+        content: res.answer,
         timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
-      toast.error(error.message || "Failed to get response");
+      console.error("Error sending message:", error);
+      toast.error(error.message || "Failed to get response. Please try again.");
 
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
         role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
+        content:
+          "Sorry, I encountered an error while processing your request. Please try again.",
         timestamp: new Date(),
       };
 
@@ -193,129 +138,299 @@ export default function ChatView({
     }
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const copySessionId = () => {
+    navigator.clipboard.writeText(sessionId);
+    toast.success("Session ID copied!");
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex justify-between items-center max-w-6xl mx-auto">
-          <div>
-            <h1 className="text-xl font-bold text-blue-900">ExplainThis</h1>
-            <div className="mt-1 text-sm text-gray-600">
-              Session: {sessionId.substring(0, 8)}...
+    <>
+      <div
+        className={`min-h-screen bg-linear-to-br from-gray-50 to-blue-50 ${
+          showConfirmModal ? "blur-sm" : ""
+        }`}
+      >
+        {/* Header */}
+        <header className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-600 text-white p-2 rounded-lg cursor-default">
+                  <span className="text-lg font-bold">ET</span>
+                </div>
+                <div>
+                  <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+                    ExplainThis AI
+                  </h1>
+                  <button
+                    onClick={copySessionId}
+                    className="text-sm text-gray-500 hover:text-blue-600 transition-colors cursor-pointer hover:underline"
+                    title="Click to copy session ID"
+                  >
+                    Session: {sessionId.substring(0, 10)}...
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* New Session Button */}
+                <button
+                  onClick={handleNewSession}
+                  className="flex-1 sm:flex-none px-4 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <span>+ New Session</span>
+                </button>
+              </div>
             </div>
           </div>
-          <button
-            onClick={handleNewSession}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-blue-100 rounded-lg transition-colors bg-blue-50 cursor-pointer"
-          >
-            New Session
-          </button>
-        </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          {/* Summary Section - Collapsible */}
+          {sessionId && isSummaryVisible && (
+            <div className="mb-4">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+                <div
+                  onClick={() => setIsSummaryVisible(false)}
+                  className="flex items-center justify-between p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+                      <span className="font-semibold text-lg">📄</span>
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-800 text-base sm:text-lg">
+                        Document Summary
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Key insights from your document (click to collapse)
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsSummaryVisible(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 p-2 cursor-pointer rounded-full hover:bg-gray-100 transition-colors"
+                    title="Hide summary"
+                  >
+                    <span className="text-xl">×</span>
+                  </button>
+                </div>
+                <div className="p-4 sm:p-5">
+                  {formattedSummary ? (
+                    <div className="text-gray-700 leading-relaxed">
+                      <div className="prose prose-sm sm:prose max-w-none">
+                        {formattedSummary.split("\n").map(
+                          (paragraph, index) =>
+                            paragraph.trim() && (
+                              <div key={index} className="mb-4 last:mb-0">
+                                <p className="text-gray-800 leading-relaxed text-sm sm:text-base">
+                                  {paragraph}
+                                </p>
+                              </div>
+                            )
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 sm:py-8">
+                      <p className="text-gray-500 text-base mb-2">
+                        📝 No summary available yet
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        Upload a document or ask questions to generate a summary
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Show Summary Button (when hidden) */}
+          {sessionId && !isSummaryVisible && (
+            <div className="mb-4">
+              <button
+                onClick={() => setIsSummaryVisible(true)}
+                className="w-full flex items-center justify-between p-3 sm:p-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer shadow-sm hover:shadow"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+                    <span className="font-semibold text-lg">📄</span>
+                  </div>
+                  <div className="text-left">
+                    <span className="font-medium text-gray-700 text-sm sm:text-base">
+                      Show Document Summary
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Click to view document insights
+                    </p>
+                  </div>
+                </div>
+                <span className="text-gray-400 text-xl">▶</span>
+              </button>
+            </div>
+          )}
+
+          {/* Chat Area */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+            {/* Messages Container */}
+            <div className="h-[calc(100vh-220px)] sm:h-[calc(100vh-280px)] min-h-75 max-h-150 overflow-y-auto p-3 sm:p-4">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <MessageBubble
+                    key={message.id}
+                    role={message.role}
+                    content={message.content}
+                    timestamp={formatTime(message.timestamp)}
+                  />
+                ))}
+
+                {isLoading && (
+                  <div className="flex items-center gap-3 pl-4">
+                    <div className="p-2">
+                      <LoadingSpinner />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-gray-600 text-sm sm:text-base">
+                        Thinking...
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Analyzing your question
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="border-t border-gray-200 p-3 sm:p-4 bg-gray-50">
+              <div className="flex items-end gap-2 sm:gap-3">
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={textareaRef}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base resize-none placeholder:text-gray-400 overflow-y-auto hide-scrollbar"
+                    placeholder="Type your question here..."
+                    rows={1}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    disabled={isLoading}
+                    maxLength={500}
+                  />
+                  {input.length > 0 && (
+                    <div className="absolute right-2 top-2">
+                      <span className="text-xs text-gray-500 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full border border-gray-200">
+                        {input.length}/500
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={sendMessage}
+                  disabled={!input.trim() || isLoading}
+                  className="px-4 sm:px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer text-sm sm:text-base whitespace-nowrap h-10.5 sm:h-12 flex items-center justify-center relative bottom-2"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <LoadingSpinner />
+                      <span>Sending...</span>
+                    </span>
+                  ) : (
+                    "Send"
+                  )}
+                </button>
+              </div>
+              <div className="mt-2 flex flex-col sm:flex-row sm:justify-between text-xs text-gray-500">
+                <span className="mb-1 sm:mb-0 flex items-center gap-1">
+                  <span className="hidden sm:inline">📝</span>
+                  Press{" "}
+                  <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">
+                    Enter
+                  </kbd>{" "}
+                  to send
+                </span>
+                <span className="flex items-center gap-1">
+                  Hold{" "}
+                  <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">
+                    Shift
+                  </kbd>{" "}
+                  +{" "}
+                  <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs font-mono">
+                    Enter
+                  </kbd>{" "}
+                  for new line
+                </span>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Add custom CSS for scrollbar */}
+        <style>{`
+          .hide-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+          }
+          .hide-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .hide-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+          }
+          .hide-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+          }
+        `}</style>
       </div>
 
-      {/* Summary Section - Always show if we have a session */}
-      {sessionId && (
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
-            <div className="flex items-center mb-3">
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mr-2">
-                <svg
-                  className="w-4 h-4 text-white"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-blur-sm bg-opacity-20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-blue-100 text-blue-600 p-2 rounded-lg">
+                <span className="text-lg">⚠️</span>
               </div>
-              <h2 className="text-lg font-semibold text-gray-800">
-                Document Summary
-              </h2>
-            </div>
-
-            {formattedSummary ? (
-              <div className="prose prose-blue max-w-none">
-                <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                  {formattedSummary.split("\n").map((paragraph, index) => (
-                    <p key={index} className="mb-3 last:mb-0">
-                      {paragraph}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="text-gray-600 italic py-2">
-                No summary available. Ask questions about your document to get
-                started.
-              </div>
-            )}
-
-            <div className="mt-4 pt-4 border-t border-blue-100">
-              <div className="text-sm text-gray-500">
-                <span className="font-medium">Tip:</span> Ask questions about
-                this document to learn more.
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">
+                  Start New Session?
+                </h3>
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Chat Area */}
-      <div className="max-w-6xl mx-auto px-6 py-6">
-        <div className="bg-white rounded-xl shadow border border-gray-200">
-          {/* Messages */}
-          <div className="h-125 overflow-y-auto p-6">
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  role={message.role}
-                  content={message.content}
-                  timestamp={formatTime(message.timestamp)}
-                />
-              ))}
-
-              {isLoading && (
-                <div className="flex items-center space-x-2">
-                  <LoadingSpinner />
-                  <span className="text-gray-600">Thinking...</span>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
+            <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-3 mb-6">
+              <p className="text-yellow-800 text-sm">
+                <span className="font-semibold">Note:</span> Your current chat
+                messages will be lost.
+              </p>
             </div>
-          </div>
 
-          {/* Input */}
-          <div className="border-t border-gray-200 p-4">
-            <div className="flex space-x-3">
-              <textarea
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                placeholder="Type your question..."
-                rows={1}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading}
-              />
+            <div className="flex gap-3">
               <button
-                onClick={sendMessage}
-                disabled={!input.trim() || isLoading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                onClick={cancelNewSession}
+                className="flex-1 px-4 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer font-medium"
               >
-                Send
+                Cancel
+              </button>
+              <button
+                onClick={confirmNewSession}
+                className="flex-1 px-4 py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors cursor-pointer font-medium"
+              >
+                Yes
               </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }

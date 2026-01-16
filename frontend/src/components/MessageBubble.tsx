@@ -1,4 +1,4 @@
-import { cleanText } from "../utils/textUtils";
+import { cleanText } from "../utils/formatText";
 
 interface MessageBubbleProps {
   role: "user" | "assistant";
