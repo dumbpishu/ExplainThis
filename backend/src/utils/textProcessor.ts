@@ -1,10 +1,8 @@
 import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { chunkText } from "./chunker";
-import { generateWithFallback } from "./generateWithFallback";
 import { CHUNK_SUMMARY_PROMPT, FINAL_SUMMARY_PROMPT } from "./prompts";
-
-const GENERATION_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
+import { openRouterGenerate } from "../config/openrouter";
 
 type ProcessOptions = {
   embed?: boolean;
@@ -24,11 +22,10 @@ export async function processText(
 
     // summarization logic for each chunk
     if (options.summarize) {
-      const summaryRes = await generateWithFallback(GENERATION_MODELS, {
-        contents: CHUNK_SUMMARY_PROMPT(currentChunk),
-      });
-
-      summaries.push(summaryRes.text || "");
+      const summaryRes = await openRouterGenerate(
+        CHUNK_SUMMARY_PROMPT(currentChunk),
+      );
+      summaries.push(summaryRes || "");
     }
 
     // embedding logic
@@ -60,11 +57,10 @@ export async function processText(
 
   if (options.summarize && summaries.length > 0) {
     const combinedSummaries = summaries.join("\n");
-    const finalSummaryRes = await generateWithFallback(GENERATION_MODELS, {
-      contents: FINAL_SUMMARY_PROMPT(combinedSummaries),
-    });
 
-    finalSummary = finalSummaryRes.text || "";
+    finalSummary = await openRouterGenerate(
+      FINAL_SUMMARY_PROMPT(combinedSummaries),
+    );
   }
 
   return { summary: finalSummary, chunkCount: chunks.length };
