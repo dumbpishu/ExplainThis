@@ -3,6 +3,7 @@ import { ai } from "../config/gemini";
 import { pineconeIndex } from "../config/pinecone";
 import { getChatHistory, addMessageToChatHistory } from "../utils/chatMemory";
 import { generateWithFallback } from "../utils/generateWithFallback";
+import { REWRITE_QUESTION_PROMPT, ANSWER_PROMPT } from "../utils/prompts";
 
 const GENERATION_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 
@@ -16,7 +17,7 @@ type ChatBody = {
 
 export const chatWithAI = async (
   req: Request<ChatParams, {}, ChatBody>,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { sessionId } = req.params;
@@ -31,21 +32,8 @@ export const chatWithAI = async (
     let finalQuestion = question;
 
     if (chatHistory.length > 0) {
-      const rewritePrompt = `
-      You are rewriting a follow-up question so it is fully self-contained.
-
-      Conversation so far:
-      ${chatHistory.map((h) => `${h.role}: ${h.content}`).join("\n")}
-
-      Follow-up question:
-      ${question}
-
-      Rewrite the question so it can be understood on its own.
-      Return ONLY the rewritten question.
-    `;
-
       const rewritten = await generateWithFallback(GENERATION_MODELS, {
-        contents: rewritePrompt,
+        contents: REWRITE_QUESTION_PROMPT(chatHistory, question),
       });
 
       if (rewritten.text) {
@@ -83,25 +71,6 @@ export const chatWithAI = async (
       .join("\n");
 
     // generate AI response
-    const contents = `
-      You are a professional AI assistant.
-
-      Use ONLY the provided context to answer the user's question.
-      Follow these rules strictly:
-      - Keep the answer concise and professional
-      - Use short paragraphs (2–3 lines max)
-      - Avoid headings, markdown lists, emojis, or decorative formatting
-      - Do not add unnecessary background or storytelling
-      - If the context is insufficient, clearly say so in one sentence
-
-      Context:
-      ${contexts}
-
-      Question:
-      ${finalQuestion}
-
-      Answer:
-    `;
 
     await addMessageToChatHistory(sessionId, {
       role: "user",
@@ -109,7 +78,7 @@ export const chatWithAI = async (
     });
 
     const aiResponse = await generateWithFallback(GENERATION_MODELS, {
-      contents,
+      contents: ANSWER_PROMPT(contexts, finalQuestion),
     });
 
     await addMessageToChatHistory(sessionId, {
