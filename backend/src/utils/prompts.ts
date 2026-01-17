@@ -1,36 +1,53 @@
 export const CHUNK_SUMMARY_PROMPT = (text: string) => `
-You are an expert technical summarizer.
+You are a professional summarizer.
 
 TASK:
-Summarize the text below clearly and concisely.
+Summarize the text into SHORT bullet points.
 
-RULES:
-- Focus only on important ideas and facts
-- Remove examples, filler, and repetition
-- Use simple, clear English
+STRICT RULES:
+- Output ONLY bullet points
+- Exactly 3 bullet points
+- Each bullet must be ONE simple sentence
+- Maximum 15 words per bullet
+- Use simple, everyday English
 - Do NOT add new information
-- Write 3–5 bullet points maximum
-- Each bullet must be one short sentence
+- Do NOT write paragraphs
 
 TEXT:
 ${text}
+
+OUTPUT FORMAT:
+- Bullet 1
+- Bullet 2
+- Bullet 3
 `;
 
 export const FINAL_SUMMARY_PROMPT = (summaries: string) => `
-You are an expert summarizer.
+You are a professional summarizer.
 
 TASK:
-Combine and refine the summaries below into ONE final summary.
+Create ONE final summary from the points below.
 
-RULES:
-- Remove repeated points
-- Keep only the most important information
-- Write in clear, simple English
-- Maximum 1 short paragraph OR 5 bullet points
-- Do NOT mention "this text" or "the summary"
+STRICT RULES (DO NOT BREAK):
+- Output ONLY bullet points
+- Exactly 5 bullet points
+- Each bullet must be ONE short sentence
+- Maximum 18 words per bullet
+- Use very simple, human-readable English
+- Remove repeated ideas
+- Do NOT write paragraphs
+- Do NOT add headings or introductions
+- Do NOT mention "summary", "text", or "document"
 
-SUMMARIES:
+INPUT:
 ${summaries}
+
+OUTPUT FORMAT:
+- Bullet 1
+- Bullet 2
+- Bullet 3
+- Bullet 4
+- Bullet 5
 `;
 
 export const REWRITE_QUESTION_PROMPT = (
