@@ -1,7 +1,12 @@
 import { createClient } from "redis";
+import { ENV } from "./env";
 
 export const redisClient = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
+  url: ENV.REDIS_URL,
+  socket: {
+    tls: true,
+    rejectUnauthorized: false,
+  },
 });
 
 redisClient.on("error", (err) => {
