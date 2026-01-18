@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
-import { ai } from "../config/gemini";
-import { pineconeIndex } from "../config/pinecone";
-import { getChatHistory, addMessageToChatHistory } from "../utils/chatMemory";
-import { generateWithFallback } from "../utils/generateWithFallback";
-import { REWRITE_QUESTION_PROMPT, ANSWER_PROMPT } from "../utils/prompts";
+import { ai } from "../config/gemini.js";
+import { pineconeIndex } from "../config/pinecone.js";
+import {
+  getChatHistory,
+  addMessageToChatHistory,
+} from "../utils/chatMemory.js";
+import { generateWithFallback } from "../utils/generateWithFallback.js";
+import { REWRITE_QUESTION_PROMPT, ANSWER_PROMPT } from "../utils/prompts.js";
 
 const GENERATION_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"];
 

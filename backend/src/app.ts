@@ -1,10 +1,10 @@
 import express from "express";
 import cors, { CorsOptions } from "cors";
 
-import ingestRoutes from "./routes/ingest.route";
-import chatRoutes from "./routes/chat.route";
-import sessionRoutes from "./routes/session.route";
-import { ENV } from "./config/env";
+import ingestRoutes from "./routes/ingest.route.js";
+import chatRoutes from "./routes/chat.route.js";
+import sessionRoutes from "./routes/session.route.js";
+import { ENV } from "./config/env.js";
 
 const app = express();
 

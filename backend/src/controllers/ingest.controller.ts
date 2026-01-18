@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { processText } from "../utils/textProcessor";
+import { processText } from "../utils/textProcessor.js";
 import { PDFParse } from "pdf-parse";
-import { generateSessionId } from "../utils/session";
+import { generateSessionId } from "../utils/session.js";
 
 export const ingestText = async (req: Request, res: Response) => {
   try {

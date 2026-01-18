@@ -1,8 +1,8 @@
-import { ai } from "../config/gemini";
-import { pineconeIndex } from "../config/pinecone";
-import { chunkText } from "./chunker";
-import { CHUNK_SUMMARY_PROMPT, FINAL_SUMMARY_PROMPT } from "./prompts";
-import { openRouterGenerate } from "../config/openrouter";
+import { ai } from "../config/gemini.js";
+import { pineconeIndex } from "../config/pinecone.js";
+import { chunkText } from "./chunker.js";
+import { CHUNK_SUMMARY_PROMPT, FINAL_SUMMARY_PROMPT } from "./prompts.js";
+import { openRouterGenerate } from "../config/openrouter.js";
 
 type ProcessOptions = {
   embed?: boolean;

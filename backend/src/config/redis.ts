@@ -1,12 +1,8 @@
 import { createClient } from "redis";
-import { ENV } from "./env";
+import { ENV } from "./env.js";
 
 export const redisClient = createClient({
   url: ENV.REDIS_URL,
-  socket: {
-    tls: true,
-    rejectUnauthorized: false,
-  },
 });
 
 redisClient.on("error", (err) => {

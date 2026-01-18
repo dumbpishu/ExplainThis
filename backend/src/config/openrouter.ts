@@ -1,5 +1,5 @@
 import axios from "axios";
-import { ENV } from "./env";
+import { ENV } from "./env.js";
 
 const { OPENROUTER_API_KEY, OPENROUTER_BASE_URL } = ENV;
 

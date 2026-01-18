@@ -1,4 +1,4 @@
-import { ai } from "../config/gemini";
+import { ai } from "../config/gemini.js";
 
 type GenerateArgs = {
   contents: string;
@@ -6,7 +6,7 @@ type GenerateArgs = {
 
 export async function generateWithFallback(
   models: string[],
-  args: GenerateArgs
+  args: GenerateArgs,
 ) {
   let lastError: any;
 
@@ -30,7 +30,7 @@ export async function generateWithFallback(
 
       console.error(
         `[LLM FALLBACK] Model failed: ${model}`,
-        error?.message || error
+        error?.message || error,
       );
 
       // non-retryable errors

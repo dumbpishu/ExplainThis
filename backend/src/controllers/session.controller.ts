@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { pineconeIndex } from "../config/pinecone";
-import { redisClient } from "../config/redis";
+import { pineconeIndex } from "../config/pinecone.js";
+import { redisClient } from "../config/redis.js";
 
 type ChatParams = {
   sessionId: string;
@@ -8,7 +8,7 @@ type ChatParams = {
 
 export const deleteSession = async (
   req: Request<ChatParams>,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { sessionId } = req.params;

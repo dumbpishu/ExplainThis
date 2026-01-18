@@ -1,6 +1,6 @@
-import app from "./app";
-import { ENV } from "./config/env";
-import { connectRedis } from "./config/redis";
+import app from "./app.js";
+import { ENV } from "./config/env.js";
+import { connectRedis } from "./config/redis.js";
 
 const PORT = ENV.PORT;
 

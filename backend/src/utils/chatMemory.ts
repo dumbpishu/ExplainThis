@@ -1,4 +1,4 @@
-import { redisClient } from "../config/redis";
+import { redisClient } from "../config/redis.js";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -11,7 +11,7 @@ const CHAT_TTL_SECONDS = 60 * 60; // 1 hour
 const getKey = (sessionId: string) => `chat:history:${sessionId}`;
 
 export const getChatHistory = async (
-  sessionId: string
+  sessionId: string,
 ): Promise<ChatMessage[]> => {
   const data = await redisClient.get(getKey(sessionId));
   return data ? JSON.parse(data) : [];
@@ -19,7 +19,7 @@ export const getChatHistory = async (
 
 export const addMessageToChatHistory = async (
   sessionId: string,
-  message: ChatMessage
+  message: ChatMessage,
 ): Promise<void> => {
   const key = getKey(sessionId);
   const history = await getChatHistory(sessionId);
