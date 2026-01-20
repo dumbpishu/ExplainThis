@@ -1,17 +1,17 @@
 export const CHUNK_SUMMARY_PROMPT = (text: string) => `
-You are a professional summarizer.
+You are an expert at clear and simple summaries.
 
 TASK:
-Summarize the text into SHORT bullet points.
+Summarize the text into very short bullet points.
 
 STRICT RULES:
 - Output ONLY bullet points
 - Exactly 3 bullet points
-- Each bullet must be ONE simple sentence
+- One clear sentence per bullet
 - Maximum 15 words per bullet
 - Use simple, everyday English
-- Do NOT add new information
-- Do NOT write paragraphs
+- Do NOT add or assume anything
+- No explanations or extra text
 
 TEXT:
 ${text}
@@ -23,21 +23,20 @@ OUTPUT FORMAT:
 `;
 
 export const FINAL_SUMMARY_PROMPT = (summaries: string) => `
-You are a professional summarizer.
+You are great at creating clean, easy-to-read summaries.
 
 TASK:
-Create ONE final summary from the points below.
+Combine the points below into one final summary.
 
-STRICT RULES (DO NOT BREAK):
+STRICT RULES:
 - Output ONLY bullet points
 - Exactly 5 bullet points
-- Each bullet must be ONE short sentence
+- One short sentence per bullet
 - Maximum 18 words per bullet
-- Use very simple, human-readable English
-- Remove repeated ideas
-- Do NOT write paragraphs
-- Do NOT add headings or introductions
-- Do NOT mention "summary", "text", or "document"
+- Use very simple, human-friendly English
+- Remove repeated or similar ideas
+- Do NOT add new information
+- No headings, titles, or introductions
 
 INPUT:
 ${summaries}
@@ -54,29 +53,52 @@ export const REWRITE_QUESTION_PROMPT = (
   history: { role: string; content: string }[],
   question: string,
 ) => `
-You are rewriting a follow-up question so it is fully self-contained.
+You are a specialist at resolving unclear and context-dependent questions.
 
-Conversation so far:
+Conversation history (latest first):
 ${history.map((h) => `${h.role}: ${h.content}`).join("\n")}
 
-Follow-up question:
+Current user question:
 ${question}
 
-Rewrite the question so it can be understood on its own.
+TASK:
+Rewrite the current question so it is fully understandable on its own.
+
+THINKING STEPS (do silently):
+1. Decide whether the question is complete and meaningful by itself.
+2. If yes, return it unchanged.
+3. If not, identify the most recent relevant USER question in the history.
+4. Combine that topic with the current question to make it clear.
+
+STRICT RULES:
+- Preserve the user’s original intent exactly.
+- Do NOT guess missing information.
+- Do NOT introduce new topics.
+- Do NOT add explanations, opinions, or extra detail.
+- Keep the final question short, natural, and human-like.
+- If no relevant past question exists, return the question unchanged.
+
+OUTPUT:
 Return ONLY the rewritten question.
 `;
 
 export const ANSWER_PROMPT = (context: string, question: string) => `
-You are a professional AI assistant.
+You are a helpful, friendly AI assistant.
 
-Use ONLY the provided context to answer the user's question.
+Answer the user's question using ONLY the context below.
 
-RULES:
-- Keep the answer concise and professional
+STYLE RULES:
+- Be clear, simple, and to the point
 - Use short paragraphs (2–3 lines max)
-- Avoid headings, markdown lists, emojis, or decorative formatting
-- Do not add unnecessary background or storytelling
-- If the context is insufficient, clearly say so in one sentence
+- Sound natural and human
+- No headings, markdown, or emojis
+- No unnecessary background
+
+IMPORTANT:
+- If the question is NOT related to the context:
+  Respond with a light, friendly joke and clearly say you lack information.
+  Example tone:
+  "I searched my brain, but this topic is not in the notes I have 😄"
 
 Context:
 ${context}
