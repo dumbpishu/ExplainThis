@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { processText } from "../utils/textProcessor.js";
 import { PDFParse } from "pdf-parse";
 import { generateSessionId } from "../utils/session.js";
+import { extractTextFromOCR } from "../utils/ocr.js";
 
 export const ingestText = async (req: Request, res: Response) => {
   try {
@@ -41,10 +42,24 @@ export const ingestPDF = async (req: Request, res: Response) => {
 
     const sessionId = generateSessionId();
 
+    let text = "";
+
     // convert buffer to Uint8Array
     const pdfData = new PDFParse(new Uint8Array(file.buffer));
-    const text = (await pdfData.getText()).text;
+    text = (await pdfData.getText()).text;
 
+    if (!text || text.length < 20) {
+      console.log("No readable text found. Running OCR...");
+      text = await extractTextFromOCR(file.buffer);
+    }
+
+    if (!text || text.length < 20) {
+      return res
+        .status(400)
+        .json({ error: "Unable to extract text from PDF." });
+    }
+
+    // AI processing
     const result = await processText(text, {
       summarize: true,
       embed: true,
