@@ -13,7 +13,7 @@ if (!fs.existsSync(TEMP_DIR)) {
 export const extractTextFromOCR = async (buffer: Buffer) => {
   // convert pdf to image
   const converter = fromBuffer(buffer, {
-    density: 200,
+    density: 300,
     savePath: "./tmp",
     format: "png",
     width: 1654,
@@ -30,9 +30,9 @@ export const extractTextFromOCR = async (buffer: Buffer) => {
     // pre-process image
     const processedImage = await sharp(page.path)
       .grayscale()
+      .blur(0.5)
       .normalize()
-      .threshold(150)
-      .resize({ width: 1800 })
+      .resize({ width: 2200, withoutEnlargement: true })
       .toBuffer();
 
     const result = await worker.recognize(processedImage);
