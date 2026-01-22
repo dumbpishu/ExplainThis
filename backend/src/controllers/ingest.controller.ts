@@ -3,6 +3,9 @@ import { processText } from "../utils/textProcessor.js";
 import { PDFParse } from "pdf-parse";
 import { generateSessionId } from "../utils/session.js";
 import { extractTextFromOCR } from "../utils/ocr.js";
+import { cleanText } from "../utils/cleanText.js";
+
+const MIN_TEXT_LENGT = 50;
 
 export const ingestText = async (req: Request, res: Response) => {
   try {
@@ -42,34 +45,40 @@ export const ingestPDF = async (req: Request, res: Response) => {
 
     const sessionId = generateSessionId();
 
+    let rawText = "";
     let text = "";
 
     // convert buffer to Uint8Array
     const pdfData = new PDFParse(new Uint8Array(file.buffer));
-    text = (await pdfData.getText()).text;
+    rawText = (await pdfData.getText()).text || "";
 
-    if (!text || text.length < 20) {
+    text = cleanText(rawText);
+
+    if (!text || text.length < MIN_TEXT_LENGT) {
       console.log("No readable text found. Running OCR...");
-      text = await extractTextFromOCR(file.buffer);
+      rawText = await extractTextFromOCR(file.buffer);
+      text = cleanText(rawText);
     }
 
-    if (!text || text.length < 20) {
+    if (!text || text.length < MIN_TEXT_LENGT) {
       return res
         .status(400)
         .json({ error: "Unable to extract text from PDF." });
     }
 
+    console.log("Text: ", text);
+
     // AI processing
-    const result = await processText(text, {
-      summarize: true,
-      embed: true,
-      sessionId,
-    });
+    // const result = await processText(text, {
+    //   summarize: true,
+    //   embed: true,
+    //   sessionId,
+    // });
 
     return res.status(200).json({
       message: "PDF ingested successfully",
-      summary: result.summary,
-      chunkCount: result.chunkCount,
+      // summary: result.summary,
+      // chunkCount: result.chunkCount,
       sessionId,
     });
   } catch (error) {

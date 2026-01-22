@@ -2,6 +2,13 @@ import { fromBuffer } from "pdf2pic";
 import { createWorker } from "tesseract.js";
 import fs from "fs";
 import sharp from "sharp";
+import path from "path";
+
+const TEMP_DIR = path.resolve(process.cwd(), "tmp");
+
+if (!fs.existsSync(TEMP_DIR)) {
+  fs.mkdirSync(TEMP_DIR, { recursive: true });
+}
 
 export const extractTextFromOCR = async (buffer: Buffer) => {
   // convert pdf to image
