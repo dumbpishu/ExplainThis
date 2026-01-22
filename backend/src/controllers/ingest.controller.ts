@@ -3,9 +3,8 @@ import { processText } from "../utils/textProcessor.js";
 import { PDFParse } from "pdf-parse";
 import { generateSessionId } from "../utils/session.js";
 import { extractTextFromOCR } from "../utils/ocr.js";
-import { cleanText } from "../utils/cleanText.js";
-
-const MIN_TEXT_LENGT = 50;
+import { cleanText } from "../utils/text.js";
+import { isReadableText } from "../utils/text.js";
 
 export const ingestText = async (req: Request, res: Response) => {
   try {
@@ -38,47 +37,44 @@ export const ingestText = async (req: Request, res: Response) => {
 export const ingestPDF = async (req: Request, res: Response) => {
   try {
     const file = req.file;
-    console.log(file);
     if (!file) {
       return res.status(400).json({ error: "Missing PDF file" });
     }
 
     const sessionId = generateSessionId();
 
-    let rawText = "";
-    let text = "";
+    let extractedText = "";
 
-    // convert buffer to Uint8Array
-    const pdfData = new PDFParse(new Uint8Array(file.buffer));
-    rawText = (await pdfData.getText()).text || "";
-
-    text = cleanText(rawText);
-
-    if (!text || text.length < MIN_TEXT_LENGT) {
-      console.log("No readable text found. Running OCR...");
-      rawText = await extractTextFromOCR(file.buffer);
-      text = cleanText(rawText);
+    try {
+      const pdfData = new PDFParse(new Uint8Array(file.buffer));
+      const rawText = (await pdfData.getText()).text || "";
+      extractedText = cleanText(rawText);
+    } catch (error) {
+      extractedText = "";
     }
 
-    if (!text || text.length < MIN_TEXT_LENGT) {
-      return res
-        .status(400)
-        .json({ error: "Unable to extract text from PDF." });
+    if (!isReadableText(extractedText)) {
+      console.log("Running OCR (scanned / handwritten PDF)...");
+      const ocrText = await extractTextFromOCR(file.buffer);
+      extractedText = cleanText(ocrText);
     }
 
-    console.log("Text: ", text);
+    if (!isReadableText(extractedText)) {
+      return res.status(400).json({
+        error: "Unable to extract readable text from PDF",
+      });
+    }
 
-    // AI processing
-    // const result = await processText(text, {
-    //   summarize: true,
-    //   embed: true,
-    //   sessionId,
-    // });
+    const result = await processText(extractedText, {
+      summarize: true,
+      embed: true,
+      sessionId,
+    });
 
     return res.status(200).json({
       message: "PDF ingested successfully",
-      // summary: result.summary,
-      // chunkCount: result.chunkCount,
+      summary: result.summary,
+      chunkCount: result.chunkCount,
       sessionId,
     });
   } catch (error) {

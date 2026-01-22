@@ -30,9 +30,10 @@ export const extractTextFromOCR = async (buffer: Buffer) => {
     // pre-process image
     const processedImage = await sharp(page.path)
       .grayscale()
-      .blur(0.5)
+      .threshold(180)
+      .sharpen()
       .normalize()
-      .resize({ width: 2200, withoutEnlargement: true })
+      .resize({ width: 2400, withoutEnlargement: true })
       .toBuffer();
 
     const result = await worker.recognize(processedImage);
