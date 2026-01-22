@@ -4,7 +4,7 @@ import { deleteSession } from "../api/session";
 import MessageBubble from "./MessageBubble";
 import LoadingSpinner from "./LoadingSpinner";
 import toast from "react-hot-toast";
-import { extractCleanSummary, formatSummary } from "../utils/formatText";
+import { extractCleanSummary, parseResumeSummary } from "../utils/formatText";
 import { formatTime } from "../utils/dateTime";
 
 interface Message {
@@ -41,8 +41,9 @@ export default function ChatView({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Extract and format the summary
-  const formattedSummary = formatSummary(extractCleanSummary(summary));
+  // Parse the summary into bullet points
+  const cleanSummary = extractCleanSummary(summary);
+  const summaryPoints = parseResumeSummary(cleanSummary);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -55,7 +56,7 @@ export default function ChatView({
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(
         textareaRef.current.scrollHeight,
-        120
+        120,
       )}px`;
     }
   }, [input]);
@@ -220,20 +221,18 @@ export default function ChatView({
                   </button>
                 </div>
                 <div className="p-4 sm:p-5">
-                  {formattedSummary ? (
-                    <div className="text-gray-700 leading-relaxed">
-                      <div className="prose prose-sm sm:prose max-w-none">
-                        {formattedSummary.split("\n").map(
-                          (paragraph, index) =>
-                            paragraph.trim() && (
-                              <div key={index} className="mb-4 last:mb-0">
-                                <p className="text-gray-800 leading-relaxed text-sm sm:text-base">
-                                  {paragraph}
-                                </p>
-                              </div>
-                            )
-                        )}
-                      </div>
+                  {summaryPoints.length > 0 ? (
+                    <div className="text-gray-700 space-y-2">
+                      {summaryPoints.map((point, index) => (
+                        <div key={index} className="flex items-start">
+                          <span className="text-gray-500 mr-3 mt-0.5 shrink-0">
+                            -
+                          </span>
+                          <span className="text-gray-800 leading-relaxed text-sm sm:text-base">
+                            {point}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-6 sm:py-8">
