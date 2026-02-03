@@ -9,7 +9,7 @@ import { ENV } from "./config/env.js";
 const app = express();
 
 const corsOptions: CorsOptions = {
-  origin: ENV.CORS_ORIGIN,
+  origin: [ENV.CORS_ORIGIN, ENV.CORS_ORIGIN_NEW],
   optionsSuccessStatus: 200,
 };
 
